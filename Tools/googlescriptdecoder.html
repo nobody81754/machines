@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Untitled</title>
+<style>
+body { font-family: sans-serif; padding: 20px; }
+textarea { width: 100%; font-family: monospace; }
+pre { background: #f4f4f4; padding: 10px; overflow-x: auto; white-space: pre-wrap; }
+button { padding: 8px 16px; margin-top: 10px; }
+</style>
+</head>
+<body>
+<h1>Decode Google script code</h1>
+
+<p>Paste google script code</p>
+<textarea id="input" rows="12" placeholder="Paste your raw string here"></textarea>
+<br>
+<button onclick="decode()">Decode</button>
+
+<h2>Decoded HTML and JS:</h2>
+<pre id="output"></pre>
+
+<script>
+function decode() {
+    let rawStr = document.getElementById('input').value;
+
+    if (!rawStr) return alert("Paste a string first!");
+
+    
+    let decoded = rawStr.replace(/\\x([0-9A-Fa-f]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
+
+    
+    decoded = decoded.replace(/\\n/g, '\n')
+                     .replace(/\\r/g, '\r')
+                     .replace(/\\t/g, '\t')
+                     .replace(/\\"/g, '"')
+                     .replace(/\\'/g, "'")
+                     .replace(/\\\\/g, '\\')
+                     .replace(/\\\//g, '/')
+                     .replace(/\\/g, '');
+
+    document.getElementById('output').textContent = decoded;
+
+    
+}
+</script>
+</body>
+</html>
+
+

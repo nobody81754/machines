@@ -1,0 +1,27 @@
+<title>Page Blocked</title>
+<center><h1>Download text</h1><center>
+
+<center><button onclick="download()">Download</button></center>
+<br>
+<center><textarea rows="32" cols="100" id="HTMLinput"></textarea><center>
+<script>
+function download()  {
+const code = document.getElementById("HTMLinput").value
+
+const text = code;
+
+
+const blob = new Blob([text], { type: "text/plain" });
+
+
+const url = URL.createObjectURL(blob);
+
+
+const a = document.createElement("a");
+a.href = url;
+a.download = "Text.txt";
+a.click();
+
+URL.revokeObjectURL(url);
+}
+</script>

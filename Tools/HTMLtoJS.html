@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Page Blocked</title>
+<style>
+body { font-family: sans-serif; margin: 20px; }
+textarea { width: 80%; margin-top: 10px; }
+button { margin-top: 10px; padding: 6px 12px; font-size: 15px; }
+h1 { margin-top: 0; }
+h2 { margin-left: 10%;}
+</style>
+</head>
+<body>
+
+<center><h1>HTML → JavaScript</h1>
+
+<p>Paste your FULL HTML page:</p>
+<textarea id="htmlInput" rows="12"></textarea>
+<br>
+<button id="generateBtn">Generate JavaScript</button></center>
+
+<h2>Generated JS:</h2><center>
+<textarea id="output" rows="20"></textarea>
+<p id="yes"></p></center>
+
+
+<script>
+const yest = document.getElementById("yes");
+
+function safeText(str) {
+    return str.replace(/\\/g, "\\\\")
+              .replace(/`/g, "\\`");
+}
+
+function safeScript(str) {
+    return str.replace(/<\/script>/gi, "<\\/script>");
+}
+
+let elementCounter = 0;
+
+function elementToJS(node, externalScripts, inlineScripts) {
+    let code = "";
+
+    
+    if (node.nodeType === Node.TEXT_NODE) {
+        const t = node.textContent;
+        if (t.trim().length > 0) {
+            code += `parent.appendChild(document.createTextNode(\`${safeText(t)}\`));\n`;
+        }
+        return code;
+    }
+
+    
+    if (node.nodeType === Node.ELEMENT_NODE) {
+        const tag = node.tagName.toLowerCase();
+
+        
+        if (tag === "script") {
+            const src = node.getAttribute("src");
+            const content = node.textContent || "";
+
+            if (src) {
+                externalScripts.push({ type: "external", src });
+                return "";
+            }
+
+            
+            if (content.includes("_0x") || content.length > 50000) {
+                externalScripts.push({ type: "blob", code: content });
+                return "";
+            }
+
+            
+            inlineScripts.push(safeScript(content));
+            return "";
+        }
+
+        
+        const id = elementCounter++;
+        const varName = `el_${id}`;
+
+        code += `const ${varName} = document.createElement("${tag}");\n`;
+
+        
+        for (let a of node.attributes) {
+            code += `${varName}.setAttribute("${a.name}", \`${safeText(a.value)}\`);\n`;
+        }
+
+       
+        if (tag === "style") {
+            code += `${varName}.textContent = \`${safeText(node.textContent)}\`;\n`;
+            code += `parent.appendChild(${varName});\n`;
+            return code;
+        }
+
+        
+        node.childNodes.forEach(child => {
+            code += `(function(parent){\n${elementToJS(child, externalScripts, inlineScripts)}})(${varName});\n`;
+        });
+
+        code += `parent.appendChild(${varName});\n`;
+        return code;
+    }
+
+    return "";
+}
+
+function generateJS(html) {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, "text/html");
+
+    let externalScripts = [];
+    let inlineScripts = [];
+
+    let out = `(function(){\n`;
+
+    out += `if(!document.head) document.documentElement.appendChild(document.createElement("head"));\n`;
+    out += `(function(parent){\n`;
+    doc.head.childNodes.forEach(n =>
+        out += elementToJS(n, externalScripts, inlineScripts)
+    );
+    out += `})(document.head);\n`;
+
+    out += `if(!document.body) document.documentElement.appendChild(document.createElement("body"));\n`;
+    out += `(function(parent){\n`;
+    doc.body.childNodes.forEach(n =>
+        out += elementToJS(n, externalScripts, inlineScripts)
+    );
+    out += `})(document.body);\n\n`;
+
+    // EXTERNAL SCRIPTS
+    out += `const externalScripts = ${JSON.stringify(externalScripts, null, 2)};\n\n`;
+
+    out += `
+function loadScriptsSequentially(list, done){
+    if(list.length === 0){ done(); return; }
+
+    const item = list.shift();
+    const s = document.createElement("script");
+
+    if(item.type === "external"){
+        s.src = item.src;
+    } else if(item.type === "blob"){
+        s.src = URL.createObjectURL(new Blob([item.code], {type:"text/javascript"}));
+    }
+
+    s.onload = () => loadScriptsSequentially(list, done);
+    s.onerror = () => { console.error("SCRIPT FAILED:", item); loadScriptsSequentially(list, done); };
+
+    document.head.appendChild(s);
+}
+`;
+
+    
+    out += `
+const inlineScripts = ${JSON.stringify(inlineScripts, null, 2)};
+
+function runInlineScripts(){
+    inlineScripts.forEach(code => {
+        const s = document.createElement("script");
+        s.textContent = code;
+        document.body.appendChild(s);
+    });
+
+    if(typeof onAllScriptsLoaded === "function"){
+        onAllScriptsLoaded();
+    }
+}
+
+loadScriptsSequentially([...externalScripts], runInlineScripts);
+`;
+
+    out += `})();`;
+
+    yest.textContent = "JS Loaded";
+    return out;
+}
+
+document.getElementById("generateBtn").addEventListener("click", () => {
+    const html = document.getElementById("htmlInput").value;
+    if (!html) {
+        yest.textContent = "";
+        document.getElementById("output").value = "";
+        alert("Enter something!");
+        return;
+    }
+    document.getElementById("output").value = generateJS(html);
+});
+</script>
+
+
+
+</body>
+</html>
+
+
+
+
+
